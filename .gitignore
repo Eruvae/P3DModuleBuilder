@@ -8,3 +8,7 @@ win_*/
 linux_*/
 osx_*/
 Source/Interrogate*
+
+# Local project files
+.vscode
+vs_cmd.lnk
