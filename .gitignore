@@ -7,7 +7,7 @@
 win_*/
 linux_*/
 osx_*/
-Source/Interrogate*
+source/interrogate*
 
 # Local project files
 .vscode
