@@ -5,6 +5,166 @@
 #include <geomTriangles.h>
 #include <geomPrimitive.h>
 #include <iostream>
+#include <unordered_map>
+
+template <typename T>
+T rol_(T value, int count) {
+    return (value << count) | (value >> (sizeof(T)*CHAR_BIT - count));
+}
+
+template <typename T>
+T ror_(T value, int count) {
+    return (value >> count) | (value << (sizeof(T)*CHAR_BIT - count));
+}
+
+namespace std {
+
+  template <>
+  struct hash<LVecBase3i>
+  {
+    std::size_t operator()(const LVecBase3i& k) const
+    {
+      return -rol_((std::size_t)k[0], 16) ^ -rol_((std::size_t)k[1], 32) ^ -rol_((std::size_t)k[2], 48);
+    }
+  };
+
+}
+
+class VoxelGrid
+{
+    LVecBase3i shape;
+    size_t y_stride;
+    size_t z_stride;
+    double scale;
+    PTA(int) data;
+    PTA(float) colors;
+    std::unordered_map<LVecBase3i, size_t> vertex_indices;
+    size_t ci;
+    
+    PT(GeomVertexData) vertices;
+    GeomVertexWriter vertex_writer;
+    GeomVertexWriter color_writer;
+    PT(Geom) geom;
+    PT(GeomTriangles) tri_prim;
+
+    inline LVecBase4 getColor(int value)
+    {
+        size_t col_ind = (value - 1) * 4;
+        return LVecBase4(colors[col_ind], colors[col_ind + 1], colors[col_ind + 2], colors[col_ind + 3]);   
+    }
+
+    void addCube(const LVecBase3i &coord, int value)
+    {
+        LVecBase3 min(coord[0] * scale, coord[1] * scale, coord[2] * scale);
+        LVecBase3 max((coord[0] + 1) * scale, (coord[1] + 1) * scale, (coord[2] + 1) * scale);
+
+        vertex_writer.add_data3(min[0], min[1], min[2]);
+        vertex_writer.add_data3(max[0], min[1], min[2]);
+        vertex_writer.add_data3(max[0], max[1], min[2]);
+        vertex_writer.add_data3(min[0], max[1], min[2]);
+        vertex_writer.add_data3(min[0], max[1], max[2]);
+        vertex_writer.add_data3(max[0], max[1], max[2]);
+        vertex_writer.add_data3(max[0], min[1], max[2]);
+        vertex_writer.add_data3(min[0], min[1], max[2]);
+        
+
+        for (int i = 0; i < 8; i++)
+            color_writer.add_data4(getColor(value));
+
+        tri_prim->add_vertices(ci + 0, ci + 2, ci + 1);
+        tri_prim->add_vertices(ci + 0, ci + 3, ci + 2);
+        tri_prim->add_vertices(ci + 2, ci + 3, ci + 4);
+        tri_prim->add_vertices(ci + 2, ci + 4, ci + 5);
+        tri_prim->add_vertices(ci + 1, ci + 2, ci + 5);
+        tri_prim->add_vertices(ci + 1, ci + 5, ci + 6);
+        tri_prim->add_vertices(ci + 0, ci + 7, ci + 4);
+        tri_prim->add_vertices(ci + 0, ci + 4, ci + 3);
+        tri_prim->add_vertices(ci + 5, ci + 4, ci + 7);
+        tri_prim->add_vertices(ci + 5, ci + 7, ci + 6);
+        tri_prim->add_vertices(ci + 0, ci + 6, ci + 7);
+        tri_prim->add_vertices(ci + 0, ci + 1, ci + 6);
+
+        vertex_indices[coord] = ci;
+        ci += 8;
+    }
+
+PUBLISHED:
+    VoxelGrid(const LVecBase3i &shape, PTA(float) colors, double scale) : shape(shape), y_stride(shape[0]), z_stride(shape[0]*shape[1]),
+            scale(scale), data(PTA(int)::empty_array(shape[0] * shape[1] * shape[2])), colors(colors), ci(0),
+            vertices(new GeomVertexData("vertices", GeomVertexFormat::get_v3c4(), Geom::UH_dynamic)),
+            vertex_writer(vertices, "vertex"), color_writer(vertices, "color"), geom(new Geom(vertices)),
+            tri_prim(new GeomTriangles(Geom::UH_dynamic))
+
+    {
+        geom->add_primitive(tri_prim);
+    }
+
+    VoxelGrid(PTA(int) data, const LVecBase3i &shape, PTA(float) colors, double scale) : shape(shape), y_stride(shape[0]),
+            z_stride(shape[0]*shape[1]), scale(scale), data(data), colors(colors), ci(0),
+            vertices(new GeomVertexData("vertices", GeomVertexFormat::get_v3c4(), Geom::UH_dynamic)),
+            vertex_writer(vertices, "vertex"), color_writer(vertices, "color"), geom(new Geom(vertices)),
+            tri_prim(new GeomTriangles(Geom::UH_dynamic))
+    {
+        if (data.size() != shape[0] * shape[1] * shape[2])
+            data.resize(shape[0] * shape[1] * shape[2]);
+
+        /*size_t voxels = 0;
+        for (int i : data)
+        {
+            if (i != 0)
+                voxels++;
+        }
+        vertices->set_num_rows(voxels);*/
+        //vertices->set_num_rows(data.size());
+
+        size_t y_stride = shape[0];
+        size_t z_stride = shape[0] * shape[1];
+        std::cout << "Generating voxel grid" << std::endl;
+        for (int z = 0; z < shape[2]; z++)
+        {
+            if (z % 10 == 0)
+                std::cout << "Progress: " << ((float)z / (float)shape[2]) << std::endl;
+            
+            for (int y = 0; y < shape[1]; y++)
+            {
+                for (int x = 0; x < shape[0]; x++)
+                {
+                    int value = data[z * z_stride + y * y_stride + x];
+                    if (value != 0)
+                    {
+                        LVecBase3i coord(x, y, z);
+                        addCube(coord, value);
+                    }
+                }
+            }
+        }
+        std::cout << "Vertices: " << vertices->get_num_rows() << ", Faces: " << tri_prim->get_num_faces() << std::endl;
+
+        geom = new Geom(vertices);
+        geom->add_primitive(tri_prim);
+    }
+
+    void updateValue(const LVecBase3i &coord, int value)
+    {
+        auto it = vertex_indices.find(coord);
+        if (it != vertex_indices.end())
+        {
+            color_writer.set_row(it->second);
+            for (int i = 0; i < 8; i++)
+                color_writer.set_data4(getColor(value));
+        }
+        else
+        {
+            color_writer.set_row(ci);
+            addCube(coord, value);
+        }   
+    }
+
+    PT(Geom) getGeom()
+    {
+        return geom;
+    }
+};
 
 BEGIN_PUBLISH
 
