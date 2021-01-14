@@ -160,6 +160,46 @@ PUBLISHED:
         }   
     }
 
+    void updateValues(PTA(int) indices, PTA(int) values)
+    {
+        for (size_t i = 0; i < values.size(); i++)
+        {
+            LVecBase3i coord(indices[3*i], indices[3*i + 1], indices[3*i + 2]);
+            auto it = vertex_indices.find(coord);
+            if (it != vertex_indices.end())
+            {
+                color_writer.set_row(it->second);
+                for (int i = 0; i < 8; i++)
+                    color_writer.set_data4(getColor(values[i]));
+            }
+            else
+            {
+                color_writer.set_row(ci);
+                addCube(coord, values[i]);
+            }
+        }
+    }
+
+    void updateValues(PTA(int) indices, int value)
+    {
+        for (size_t i = 0; i < indices.size() - 2; i += 3)
+        {
+            LVecBase3i coord(indices[i], indices[i + 1], indices[i + 2]);
+            auto it = vertex_indices.find(coord);
+            if (it != vertex_indices.end())
+            {
+                color_writer.set_row(it->second);
+                for (int i = 0; i < 8; i++)
+                    color_writer.set_data4(getColor(value));
+            }
+            else
+            {
+                color_writer.set_row(ci);
+                addCube(coord, value);
+            }
+        }
+    }
+
     PT(Geom) getGeom()
     {
         return geom;
