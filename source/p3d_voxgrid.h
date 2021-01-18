@@ -36,7 +36,6 @@ class VoxelGrid
     size_t y_stride;
     size_t z_stride;
     double scale;
-    PTA(int) data;
     PTA(float) colors;
     std::unordered_map<LVecBase3i, size_t> vertex_indices;
     size_t ci;
@@ -90,7 +89,7 @@ class VoxelGrid
 
 PUBLISHED:
     VoxelGrid(const LVecBase3i &shape, PTA(float) colors, double scale) : shape(shape), y_stride(shape[0]), z_stride(shape[0]*shape[1]),
-            scale(scale), data(PTA(int)::empty_array(shape[0] * shape[1] * shape[2])), colors(colors), ci(0),
+            scale(scale), colors(colors), ci(0),
             vertices(new GeomVertexData("vertices", GeomVertexFormat::get_v3c4(), Geom::UH_dynamic)),
             vertex_writer(vertices, "vertex"), color_writer(vertices, "color"), geom(new Geom(vertices)),
             tri_prim(new GeomTriangles(Geom::UH_dynamic))
@@ -100,7 +99,7 @@ PUBLISHED:
     }
 
     VoxelGrid(PTA(int) data, const LVecBase3i &shape, PTA(float) colors, double scale) : shape(shape), y_stride(shape[0]),
-            z_stride(shape[0]*shape[1]), scale(scale), data(data), colors(colors), ci(0),
+            z_stride(shape[0]*shape[1]), scale(scale), colors(colors), ci(0),
             vertices(new GeomVertexData("vertices", GeomVertexFormat::get_v3c4(), Geom::UH_dynamic)),
             vertex_writer(vertices, "vertex"), color_writer(vertices, "color"), geom(new Geom(vertices)),
             tri_prim(new GeomTriangles(Geom::UH_dynamic))
@@ -111,6 +110,13 @@ PUBLISHED:
 
     void reset(PTA(int) data)
     {
+        vertex_indices.clear();
+        tri_prim->clear_vertices();
+        vertices->clear_rows();
+        vertex_writer.set_row(0);
+        color_writer.set_row(0);
+        ci = 0;
+
         if (data.size() != shape[0] * shape[1] * shape[2])
             data.resize(shape[0] * shape[1] * shape[2]);
 
@@ -170,7 +176,7 @@ PUBLISHED:
             if (it != vertex_indices.end())
             {
                 color_writer.set_row(it->second);
-                for (int i = 0; i < 8; i++)
+                for (int j = 0; j < 8; j++)
                     color_writer.set_data4(getColor(values[i]));
             }
             else
