@@ -105,6 +105,12 @@ PUBLISHED:
             vertex_writer(vertices, "vertex"), color_writer(vertices, "color"), geom(new Geom(vertices)),
             tri_prim(new GeomTriangles(Geom::UH_dynamic))
     {
+        geom->add_primitive(tri_prim);
+        reset(data);
+    }
+
+    void reset(PTA(int) data)
+    {
         if (data.size() != shape[0] * shape[1] * shape[2])
             data.resize(shape[0] * shape[1] * shape[2]);
 
@@ -117,8 +123,6 @@ PUBLISHED:
         vertices->set_num_rows(voxels);*/
         //vertices->set_num_rows(data.size());
 
-        size_t y_stride = shape[0];
-        size_t z_stride = shape[0] * shape[1];
         std::cout << "Generating voxel grid" << std::endl;
         for (int z = 0; z < shape[2]; z++)
         {
@@ -139,9 +143,6 @@ PUBLISHED:
             }
         }
         std::cout << "Vertices: " << vertices->get_num_rows() << ", Faces: " << tri_prim->get_num_faces() << std::endl;
-
-        geom = new Geom(vertices);
-        geom->add_primitive(tri_prim);
     }
 
     void updateValue(const LVecBase3i &coord, int value)
@@ -160,7 +161,7 @@ PUBLISHED:
         }   
     }
 
-    void updateValues(PTA(int) indices, PTA(int) values)
+    /*void updateValues(PTA(int) indices, PTA(int) values)
     {
         for (size_t i = 0; i < values.size(); i++)
         {
@@ -198,7 +199,7 @@ PUBLISHED:
                 addCube(coord, value);
             }
         }
-    }
+    }*/
 
     PT(Geom) getGeom()
     {
