@@ -161,7 +161,7 @@ PUBLISHED:
         }   
     }
 
-    /*void updateValues(PTA(int) indices, PTA(int) values)
+    void updateValues(PTA(int) indices, PTA(int) values)
     {
         for (size_t i = 0; i < values.size(); i++)
         {
@@ -181,7 +181,7 @@ PUBLISHED:
         }
     }
 
-    void updateValues(PTA(int) indices, int value)
+    /*void updateValues(PTA(int) indices, int value)
     {
         for (size_t i = 0; i < indices.size() - 2; i += 3)
         {
